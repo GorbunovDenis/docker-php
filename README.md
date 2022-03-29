@@ -1,1 +1,2 @@
-Быстрая легкая сеть Docker с использованием PHP MySQL Nginx и Node
+Выполнить запуск контейнеров: docker-compose up -d --build
+
