@@ -1,0 +1,75 @@
+# Версия Docker API
+version: '3'
+
+networks:
+    nginx-php-mysq:
+# Сервисы которые мы будем запускать
+services:
+
+    # nginx
+    nginx-service:
+    
+        image: nginx:stable-alpine
+        container_name: nginx-container
+        #перезапускает контейнер только тогда, когда какой-либо пользователь выполняет команду для остановки контейнера, а не в случае сбоя из-за ошибки.
+        restart: unless-stopped
+        # Говорим пробросить порт 8000 хоста в порт 80 контейнера
+        ports:
+            - "8080:80"
+        # Монтируем локальную директорию ./app в директорию 
+        # внутри контейнера /var/www/project
+        # Монтируем локальную директорию ./nginx/default.conf 
+        # внутри контейнера /etc/nginx/conf.d/default.conf
+        volumes:
+            - ./app:/var/www/project
+            - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
+            
+        #nginx-service зависит от сервисов php-service и mysq-service - запуститься после них
+        depends_on:
+            - php-service
+            - mysq-service
+        #настраиваем сеть для взаимодействия между контейнерами
+        networks:
+            - nginx-php-mysq
+
+    # php
+    php-service:
+        build:
+        #Команда сборки docker создает образы Docker из файла Dockerfile и «контекста». 
+        #Контекст сборки — это набор файлов, расположенных по указанному PATH или URL .
+            context: .
+            dockerfile: ./php/Dockerfile
+        container_name: php-container
+        #перезапускает контейнер только тогда, когда какой-либо пользователь выполняет команду для остановки контейнера, а не в случае сбоя из-за ошибки.
+        restart: unless-stopped
+        # Говорим пробросить порт 9000 хоста в порт 9000 контейнера
+        ports:
+            - "9000:9000"
+        # Монтируем локальную директорию ./app в директорию внутри контейнера /var/www/project
+        volumes:
+            - ./app:/var/www/project
+        #настраиваем сеть для взаимодействия между контейнерами
+        networks:
+            - nginx-php-mysq
+
+    # mysql
+    mysq-service:
+        image: mysql:8
+        container_name: mysq-container
+        # Пробросим порт 3306 хоста в порт 3306 контейнера
+        ports:
+            - "3306:3306"
+        # Монтируем локальную директорию ./mysql в директорию внутри контейнера /var/www/project
+        volumes:
+            - ./mysql:/var/lib/mysql
+        command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+        #«Всегда» перезапускает контейнер независимо от того, вызвано ли это ошибкой, выполняется пользователем или перезапускается Docker.
+        restart: always 
+        # Настраиваем переменные окружения для того чтобы переменные каждый раз не вводить для каждого контейнера
+        environment:
+            MYSQL_USER: root
+            MYSQL_ROOT_PASSWORD: secret
+            MYSQL_PASSWORD: secret
+        #настраиваем сеть для взаимодействия между контейнерами, сервисы подключаются к соединительной сети app
+        networks:
+            - nginx-php-mysq
